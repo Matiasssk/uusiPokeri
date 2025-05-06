@@ -11,6 +11,7 @@ export default function PokerSimulator() {
   const [progress, setProgress] = useState(0);
   const [running, setRunning] = useState(false);
   const [board, setBoard] = useState(["", "", "", "", ""]);
+  const [move, setMove] = useState(null); // Uusi tila pelistrategian suosituksia varten
   const workerRef = useRef(null);
 
   const ranks = [
@@ -62,6 +63,28 @@ export default function PokerSimulator() {
     setProgress(0);
     setResult(null);
     worker.postMessage({ card1, card2, players, simCount, board: usedBoard });
+  };
+
+  const handleStrategy = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/make_move", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          hand: [card1, card2],
+          board: board.filter((card) => card !== ""),
+          pot_size: 100, // Voit muuttaa tämän dynaamiseksi, jos haluat
+          player_chips: 1000, // Sama täällä
+          game_stage: "flop", // Vaihda pelivaihe tarpeen mukaan
+        }),
+      });
+      const data = await response.json();
+      setMove(data); // Aseta strategian suositukset
+    } catch (error) {
+      console.error("Error fetching strategy:", error);
+    }
   };
 
   const cardOptions = allCards.map((card) => (
@@ -159,6 +182,13 @@ export default function PokerSimulator() {
         Simulate
       </button>
 
+      <button
+        onClick={handleStrategy}
+        className="bg-green-500 text-white px-4 py-2 rounded mt-2"
+      >
+        Get Strategy
+      </button>
+
       {running && <p>Simulating... {progress}%</p>}
 
       {result && (
@@ -172,6 +202,19 @@ export default function PokerSimulator() {
           <p>Win: {result.win.toFixed(2)} %</p>
           <p>Tie: {result.tie.toFixed(2)} %</p>
           <p>Lose: {result.lose.toFixed(2)} %</p>
+        </div>
+      )}
+
+      {move && (
+        <div
+          style={{
+            border: "1px solid #ccc",
+            padding: "1rem",
+            marginTop: "1rem",
+          }}
+        >
+          <p>Recommended Move: {move.move}</p>
+          {move.bet_amount > 0 && <p>Bet Amount: {move.bet_amount}</p>}
         </div>
       )}
     </div>
